@@ -1,0 +1,11 @@
+﻿{
+	"job": "portrait",
+	"config": {
+		"module": "portrait",
+		"module_params": {
+			"model_name": "PortraitStable",
+			"single_face": true
+		},
+		"out_params": {}
+	}
+}

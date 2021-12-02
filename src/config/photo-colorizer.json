@@ -1,0 +1,10 @@
+﻿{
+	"job": "colorize",
+	"config": {
+		"module": "colorize",
+		"module_params": {
+			"model_name": "ColorizeStable"
+		},
+		"out_params": {}
+	}
+}

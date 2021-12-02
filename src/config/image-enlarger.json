@@ -1,0 +1,13 @@
+﻿{
+	"job": "enlarge",
+	"config": {
+		"module": "enlarge",
+		"module_params": {
+			"model_name": "EnlargeStable",
+			"suppress_noise": 26,
+			"remove_blur": 26,
+			"scale": "2x"
+		},
+		"out_params": {}
+	}
+}

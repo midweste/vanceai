@@ -1,0 +1,10 @@
+﻿{
+	"job": "sharpen_auto",
+	"config": {
+		"module": "sharpen_auto",
+		"module_params": {
+			"model_name": "DpedSharpenStable"
+		},
+		"out_params": {}
+	}
+}

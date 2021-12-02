@@ -1,0 +1,10 @@
+﻿{
+	"job": "cartoonize",
+	"config": {
+		"module": "cartoonize",
+		"module_params": {
+			"model_name": "CartoonizeStable"
+		},
+		"out_params": {}
+	}
+}

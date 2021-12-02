@@ -1,0 +1,11 @@
+﻿{
+	"job": "compress",
+	"kind": "toolkit",
+	"dist": "image",
+    "config": {
+        "module": "compress",
+        "module_params": {
+            "quality": 50
+        }
+    }
+}

@@ -1,0 +1,10 @@
+﻿{
+	"job": "colorize_pro",
+	"config": {
+		"module": "deoldify",
+		"module_params": {
+			"model_name": "ColorizeStable_pth",
+			"render_factor": 30
+		}
+	}
+}

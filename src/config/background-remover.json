@@ -1,0 +1,11 @@
+﻿{
+	"job": "matting",
+	"config": {
+		"module": "matting",
+		"module_params": {
+			"model_name": "MattingStable",
+			"rescale": 532
+		},
+		"out_params": {}
+	}
+}

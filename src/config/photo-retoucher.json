@@ -1,0 +1,9 @@
+﻿{
+	"job": "perfect",
+	"config": {
+		"module": "perfect",
+		"module_params": {
+			"model_name": "perfect_2k"
+		}
+	}
+}

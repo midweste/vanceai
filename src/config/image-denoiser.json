@@ -1,0 +1,13 @@
+﻿{
+	"job": "denoise",
+	"config": {
+		"module": "denoise",
+		"module_params": {
+			"model_name": "DenoiseStable",
+			"remove_noise": 75,
+			"sharpen" : 75,
+			"remove_original_detail": 75
+		},
+		"out_params": {}
+	}
+}

@@ -1,0 +1,11 @@
+﻿{
+	"job": "repair",
+	"config": {
+		"module": "repair",
+		"module_params": {
+			"model_name": "RepairStable",
+			"with_scratch": true,
+			"inpainting": true
+		}
+	}
+}

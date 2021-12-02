@@ -1,0 +1,13 @@
+﻿{
+	"job": "sharpen",
+	"config": {
+		"module": "sharpen",
+		"module_params": {
+			"model_name": "SharpenStable",
+			"sharpness": 75,
+			"suppress_noise": 75,
+			"add_grain":0
+		},
+		"out_params": {}
+	}
+}
