@@ -255,7 +255,7 @@ class Client
      */
     public function enlargeByScale(string $filepath, int $scale = 2, int $suppress_noise = 26, int $remove_blur = 26): string
     {
-        if (!array_search($scale, $this->getEnlargeScales())) {
+        if (!in_array($scale, $this->getEnlargeScales(), true)) {
             throw new \Exception(sprintf('Scale %s not available. Use %s', $scale, implode(', ', $this->enlargeScales)));
         }
         $config = json_decode($this->getConfig('image-enlarger.json'));
