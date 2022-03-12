@@ -32,7 +32,7 @@ class Client
         $this->setEndpoint('https://api-service.vanceai.com/web_api/v1/');
         $this->setClientConfig([
             'base_uri' => $this->getEndpoint(),
-            'timeout'  => 5,
+            'timeout'         => 20,
             'allow_redirects' => true,
             'connect_timeout' => 3.0,
             // 'verify'  => false,
@@ -107,8 +107,8 @@ class Client
     protected function responseHandler(Response $response): object
     {
         $code = $response->getStatusCode();
-        if ($code <> 200) {
-            $error = (isset($this->getCodes()[$code])) ? $this->getCodes()[$code] : "Unknown error";
+        if ($code !== 200) {
+            $error = (isset($this->getCodes()[$code])) ? $this->getCodes()[$code] : 'Unknown error';
             throw new \Exception($error);
         }
         return json_decode($response->getBody()->getContents())->data;
@@ -193,11 +193,12 @@ class Client
             throw new \Exception(sprintf('Could not write file %s', $filepath));
         }
 
-        $resource = fopen($filepath, 'w+');
-        $stream = Utils::streamFor($resource);
-
-        $this->getClient()->request('POST', 'download', [
-            'save_to' => $stream,
+        // $resource = fopen( $filepath, 'w+' );
+        // $stream   = Utils::streamFor( $resource );
+        // sink is borked
+        // https://github.com/wikimedia/ws-export/pull/302
+        $response = $this->getClient()->request('POST', 'download', [
+            //'sink'      => $filepath,
             'multipart' => [
                 [
                     'name' => 'api_token',
@@ -206,9 +207,11 @@ class Client
                 [
                     'name' => 'trans_id',
                     'contents' => $transId,
-                ]
-            ]
+                ],
+            ],
         ]);
+        $body     = $response->getBody()->getContents();
+        file_put_contents($filepath, $body);
         // clearstatcache(); //be carefull when using filesize, cause it's results are cached for better performance.
         return (is_file($filepath) && filesize($filepath) > 0) ? true : false;
     }
@@ -226,15 +229,15 @@ class Client
         $tempFilePath = sprintf('%s/%s', sys_get_temp_dir(), $pathinfo['basename']);
 
         // finished processing
-        if ($data->status == 'finish' && $this->download($data->trans_id, $tempFilePath)) {
+        if ($data->status === 'finish' && $this->download($data->trans_id, $tempFilePath)) {
             return $tempFilePath;
         }
 
         // not finished check progress x times
-        if ($data->status <> 'fatal') {
+        if ($data->status !== 'fatal') {
             for ($i = 1; $i <= 10; $i++) {
                 $progress = $this->progress($data->trans_id);
-                if ($progress->status == 'finish' && $this->download($data->trans_id, $tempFilePath)) {
+                if ($progress->status === 'finish' && $this->download($data->trans_id, $tempFilePath)) {
                     return $tempFilePath;
                 }
                 usleep(500000);
@@ -289,8 +292,8 @@ class Client
 
         $computedScale = null;
         foreach ($this->getEnlargeScales() as $scale) {
-            $scaledHeight = $currentWidth * $scale;
-            $scaledWidth = $currentHeight * $scale;
+            $scaledWidth  = $currentWidth * $scale;
+            $scaledHeight = $currentHeight * $scale;
             if ($scaledHeight > $minHeight || $scaledWidth > $minWidth) {
                 $computedScale = $scale;
                 break;
