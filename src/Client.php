@@ -25,6 +25,7 @@ class Client
     private $enlargeScales = [2, 4, 6, 8];
     private $client;
     private $clientConfig = [];
+    private $webhook;
 
     public function __construct(string $apiKey)
     {
@@ -32,7 +33,7 @@ class Client
         $this->setEndpoint('https://api-service.vanceai.com/web_api/v1/');
         $this->setClientConfig([
             'base_uri' => $this->getEndpoint(),
-            'timeout'         => 20,
+            'timeout'         => 10,
             'allow_redirects' => true,
             'connect_timeout' => 3.0,
             // 'verify'  => false,
@@ -83,16 +84,6 @@ class Client
         return $this;
     }
 
-    /* main api */
-
-    protected function getClient(): GuzzleClient
-    {
-        if (!$this->client instanceof GuzzleClient) {
-            $this->client = new GuzzleClient($this->getClientConfig());
-        }
-        return $this->client;
-    }
-
     public function getClientConfig(): array
     {
         return $this->clientConfig;
@@ -102,6 +93,27 @@ class Client
     {
         $this->clientConfig = $clientConfig;
         return $this;
+    }
+
+    public function getWebhook(): string
+    {
+        return $this->webhook;
+    }
+
+    public function setWebhook(string $webhook): self
+    {
+        $this->webhook = $webhook;
+        return $this;
+    }
+
+    /* main api */
+
+    protected function getClient(): GuzzleClient
+    {
+        if (!$this->client instanceof GuzzleClient) {
+            $this->client = new GuzzleClient($this->getClientConfig());
+        }
+        return $this->client;
     }
 
     protected function responseHandler(Response $response): object
@@ -133,10 +145,15 @@ class Client
         return $config;
     }
 
+    // TODO: The file size can not be larger than 10MB and the max resolution is 34 Megapixels (short for MP).
     protected function upload(string $filepath): string
     {
         if (!is_file($filepath) || !is_readable($filepath)) {
             throw new \Exception(sprintf('Could not read file %s', $filepath));
+        }
+
+        if (filesize($filepath) / pow(1024, 2) > 10) {
+            throw new \Exception(sprintf('File cannot be larger than 10MB'));
         }
 
         $data = $this->request(
@@ -157,7 +174,7 @@ class Client
         return $data->uid;
     }
 
-    public function transform(string $filepath, object $config): object
+    public function transform(string $filepath, object $config, string $webhook = ''): object
     {
         $uid = $this->upload($filepath);
         $data =  $this->request('transform', [
@@ -165,6 +182,7 @@ class Client
                 'api_token' =>  $this->getKey(),
                 'uid' => $uid,
                 'jconfig' => $this->configEncode($config),
+                'webhook' => $webhook
             ]
         ]);
         return $data;
@@ -210,38 +228,54 @@ class Client
                 ],
             ],
         ]);
-        $body     = $response->getBody()->getContents();
-        file_put_contents($filepath, $body);
+        $body = $response->getBody()->getContents();
+        if (empty($body)) {
+            throw new \Exception(sprintf('Could not retrieve file %s', $filepath));
+        }
+
+        if (!file_put_contents($filepath, $body)) {
+            throw new \Exception(sprintf('Could not write file %s', $filepath));
+        }
+
         // clearstatcache(); //be carefull when using filesize, cause it's results are cached for better performance.
         return (is_file($filepath) && filesize($filepath) > 0) ? true : false;
     }
 
     /* Helper methods */
 
+    protected function downloadWhenFinished(string $transId, string $filepath): ?string
+    {
+        $max_execution = is_int(ini_get('max_execution_time')) ? ini_get('max_execution_time') : 30;
+        $sleep         = 1;
+        $retries = floor($max_execution / $sleep);
+        for ($i = 1; $i <= $retries; $i++) {
+            $progress = $this->progress($transId);
+            if ($progress->status === 'finish' && $this->download($transId, $filepath)) {
+                return $filepath;
+            }
+            sleep($sleep);
+        }
+        return null;
+    }
+
     protected function transformAndDownload(string $filepath, object $config): string
     {
-        $data = $this->transform($filepath, $config);
+        // insert fake webhook address if one doesnt exist
+        // allows transform to return immediately, and to use progress endpoint
+        $webhook = 'https://api-service.vanceai.com';
+
+        $data = $this->transform($filepath, $config, $webhook);
         if (empty($data->trans_id) || empty($data->status)) {
             throw new \Exception(sprintf('Could not transform %s', $filepath));
         }
-
-        $pathinfo = pathinfo($filepath);
-        $tempFilePath = sprintf('%s/%s', sys_get_temp_dir(), $pathinfo['basename']);
-
-        // finished processing
-        if ($data->status === 'finish' && $this->download($data->trans_id, $tempFilePath)) {
-            return $tempFilePath;
+        if ($data->status === 'fatal') {
+            throw new \Exception(sprintf('Could not transform %s because of an error', $filepath));
         }
 
-        // not finished check progress x times
-        if ($data->status !== 'fatal') {
-            for ($i = 1; $i <= 10; $i++) {
-                $progress = $this->progress($data->trans_id);
-                if ($progress->status === 'finish' && $this->download($data->trans_id, $tempFilePath)) {
-                    return $tempFilePath;
-                }
-                usleep(500000);
-            }
+        $tempFilePath = sprintf('%s/%s', sys_get_temp_dir(), pathinfo($filepath, PATHINFO_BASENAME));
+        $downloaded = $this->downloadWhenFinished($data->trans_id, $tempFilePath);
+        if (!empty($downloaded)) {
+            return $downloaded;
         }
 
         throw new \Exception(sprintf('Timeout exceeded for transform id %s', $data->trans_id));
