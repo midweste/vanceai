@@ -243,10 +243,17 @@ class Client
 
     /* Helper methods */
 
+    /**
+     * Download a file when a transaction ID is finished processing
+     *
+     * @param string $transId
+     * @param string $filepath
+     * @return string|null Null if transaction didn't finish in max execution time
+     */
     protected function downloadWhenFinished(string $transId, string $filepath): ?string
     {
         $max_execution = is_int(ini_get('max_execution_time')) ? ini_get('max_execution_time') : 30;
-        $sleep         = 1;
+        $sleep = 1;
         $retries = floor($max_execution / $sleep);
         for ($i = 1; $i <= $retries; $i++) {
             $progress = $this->progress($transId);
@@ -258,6 +265,13 @@ class Client
         return null;
     }
 
+    /**
+     * Transform an image, monitor the status endpoint, download when finished
+     *
+     * @param string $filepath
+     * @param object $config
+     * @return string New file path
+     */
     protected function transformAndDownload(string $filepath, object $config): string
     {
         // insert fake webhook address if one doesnt exist
@@ -288,7 +302,7 @@ class Client
      * @param integer $scale
      * @param integer $suppress_noise
      * @param integer $remove_blur
-     * @return string Transaction ID
+     * @return string New file path
      */
     public function enlargeByScale(string $filepath, int $scale = 2, int $suppress_noise = 26, int $remove_blur = 26): string
     {
@@ -304,6 +318,27 @@ class Client
     }
 
     /**
+     * Compute the needed scale to enlarge an image to a minimum height and width
+     *
+     * @param integer $currentWidth
+     * @param integer $minWidth
+     * @param integer $currentHeight
+     * @param integer $minHeight
+     * @return integer|null Null maximum scale was reached and still under minimums
+     */
+    public function enlargeComputeScale(int $currentWidth, int $minWidth, int $currentHeight, int $minHeight): ?int
+    {
+        foreach ($this->getEnlargeScales() as $scale) {
+            $scaledWidth  = $currentWidth * $scale;
+            $scaledHeight = $currentHeight * $scale;
+            if ($scaledHeight > $minHeight && $scaledWidth > $minWidth) {
+                return $scale;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Enlarge an image to the minimum scale required to meet height or width requirements
      *
      * @param string $filepath
@@ -311,7 +346,7 @@ class Client
      * @param integer $minHeight
      * @param integer $suppress_noise
      * @param integer $remove_blur
-     * @return string Transaction ID
+     * @return string New file path
      */
     public function enlargeByDimensions(string $filepath, int $minWidth, int $minHeight, int $suppress_noise = 26, int $remove_blur = 26): string
     {
@@ -324,15 +359,8 @@ class Client
             throw new \Exception(sprintf('Could not get image information from %s ', $filepath));
         }
 
-        $computedScale = null;
-        foreach ($this->getEnlargeScales() as $scale) {
-            $scaledWidth  = $currentWidth * $scale;
-            $scaledHeight = $currentHeight * $scale;
-            if ($scaledHeight > $minHeight || $scaledWidth > $minWidth) {
-                $computedScale = $scale;
-                break;
-            }
-        }
+        $computedScale = $this->enlargeComputeScale($currentWidth, $minWidth, $currentHeight, $minHeight);
+
         if (empty($computedScale)) {
             throw new \Exception(sprintf('%s is too small. Max scale could not reach desired width/height', $filepath));
         }
